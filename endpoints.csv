@@ -105,8 +105,8 @@ v7/athlete/achievements/badges/{slug},
 v7/athlete/progress,
 v7/athlete/progress/skill_paths/{slug},
 v7/base_activities/{slug},X-Requires-Exercise-Sync
-v7/calendar,
-v7/calendar/days/{date},
+v7/calendar,Need Payment-Token Header with token from /payment/v3/claims endpoint
+v7/calendar/days/{date},Need Payment-Token Header with token from /payment/v3/claims endpoint
 v7/coach/personalized_plans,
 v7/coach/personalized_plans/{id}/summary,
 v7/coach/personalized_plans/current/finish,
