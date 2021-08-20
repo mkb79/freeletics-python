@@ -5,109 +5,96 @@ Inspired from http://topu.ch/it/reverse-engineering-des-freeletics-apis/
 
 import json
 import logging
+from datetime import datetime, timezone
+from typing import Optional
 
 import httpx
+
+from . import _constants as cs
+from ._auth import FreeleticsAuth, IdToken, RefreshToken
 
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = 'https://api.freeletics.com/'
 
+class BaseClient:
 
-class FreeleticsAuth(httpx.Auth):
-    def __init__(self, id_token, refresh_token, user_id):
-        self.id_token = id_token
-        self.refresh_token = refresh_token
-        self.user_id = user_id
+    _SESSION = None
 
-    def auth_flow(self, request):
-        # Send the request, with a custom `X-Authentication` header.
-        request.headers['Authorization'] = f'Bearer {self.id_token}'
-        response = yield request
+    def __init__(self,
+                 id_token: Optional[str] = None,
+                 refresh_token: Optional[str] = None,
+                 user_id: Optional[int] = None,
+                 detect_user_id: bool = False):
 
-        if response.status_code == 401 or response.status_code == 419:
-            # If the server issues a 401 response, then issue a request to
-            # refresh tokens, and resend the request.
-            refresh_response = self.build_refresh_request()
-            self.update_token(refresh_response)
+        if id_token is not None:
+            id_token = IdToken(id_token, user_id)
 
-            request.headers['Authorization'] = f'Bearer {self.id_token}'
-            yield request
+        if refresh_token is not None:
+            if user_id is None:
+                if not detect_user_id:
+                    raise Exception('refresh token without user_id provided')
+                if detect_user_id and id_token is None:
+                    raise Exception('Can not detect user id, no id token provided')
 
-    def build_refresh_request(self):
-        # Return an `httpx.Request` for refreshing tokens.
+            user_id = user_id or id_token.user_id
+            refresh_token = RefreshToken(refresh_token, user_id)            
 
-        logger.info('Requesting new id_token')
-        data = {
-          "user_id" : self.user_id,
-          "refresh_token" : self.refresh_token
+        headers = {
+            'Accept': 'application/json',
+            'Accept-Encoding': 'br;q=1.0, gzip;q=0.9, deflate;q=0.8'
         }
-        with httpx.Client(base_url=BASE_URL) as client:
-            url = '/user/v1/auth/refresh'
-            return client.post(url, json=data)
 
-    def update_token(self, response):
-        # Update the `.access_token` and `.refresh_token` tokens
-        # based on a refresh response.
-        data = response.json()
-        self.id_token = data['auth']['id_token']
-        logger.info(f'Got new id_token {self.id_token}')
-        
+        self._session = self._SESSION(headers=headers, base_url=cs.BASE_URL)
 
-class FreeleticsClient:
-    def __init__(self, id_token, refresh_token, user_id):
-        auth = FreeleticsAuth(
+        self._session.auth = FreeleticsAuth(
             id_token=id_token,
             refresh_token=refresh_token,
-            user_id=user_id)
-        headers = {
-            'Accept': 'application/json'
-        }
-        self._session = httpx.Client(auth=auth, headers=headers, base_url=BASE_URL)
+            session=self._session)
+
+    @property
+    def is_authenticated(self):
+        auth = self._session.auth
+        if auth is not None:
+            if auth.refresh_token:
+                return True
+            if auth.id_token and not auth.id_token.is_expired:
+                return True
+        return False
 
     def request(self, method, url, **kwargs):
-        r = self._session.request(method, url, **kwargs)
-        try:
-            r.raise_for_status()
-            return r.json()
-        except json.JSONDecodeError:
-            return r.text
-        except:
-            print(r.headers)
-            raise
+        raise NotImplementedError
 
     def login(self, username, password):
         """
-        Doesnt work at this moment. Server raises a HTTP Status Code 426.
-        Have to find out how X-Authorization header is created.
+        Does not work at this moment. Server raises a HTTP Status Code 426.
+        Login request have to be signed using a `X-Authorization` and 
+        `X-Authorization-Timestamp` header. 
+        Have to find out how X-Authorization token is created.
+        Update: Have found out that the request body is part of the signing
+                process. Using signing headers from a fresh login with the
+                iOS Freeletics App let me login with my Client, if the request
+                body is formed (remove whitespaces) like the iOS App does.
         """
         print('This method doesnt work at this time')
         url = '/user/v2/password/authentication'
+
+        now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        now_ts = round(now.timestamp() * 1000)
         headers = {
             'X-Authorization': 'None',
-            'X-Authorization-Timestamp': 'None'
+            'X-Authorization-Timestamp': str(now_ts),
+            'Content-Type': 'application/json'
         }
+
         data = {
             "authentication": {
                 "email": username,
                 "password": password
             }
         }
-        return self.request("POST", url, json=data, headers=headers, auth=None)
-
-    def login_old(self, username, password):
-        """
-        Doesnt work at this moment. Server raises a HTTP Status Code 426.
-        """
-        print('This method doesnt work at this time!')
-        url = '/user/v1/auth/password/login'
-        data = {
-            'login': {
-                "email": username,
-                "password": password
-            }
-        }
-        return self.request("POST", url, json=data, auth=None)
+        data = json.dumps(data, separators=(',', ':'))
+        return self.request("POST", url, data=data, headers=headers, auth=None)
 
     def profile(self):
         url = '/v4/profile'
@@ -236,8 +223,66 @@ class FreeleticsClient:
     def logout(self):
         url = '/user/v1/auth/logout'
         params = {
-            'refresh_token': self._session.auth.refresh_token,
-            'user_id': self._session.auth.user_id
+            'refresh_token': self._session.auth.refresh_token.token,
+            'user_id': self._session.auth.refresh_token.user_id
         }
         return self.request('DELETE', url, params=params)
+
+
+class FreeleticsClient(BaseClient):
+
+    _SESSION = httpx.Client
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
+    def close(self) -> None:
+        self._session.close()
+
+    def request(self, method, url, **kwargs):
+        r = self._session.request(method, url, **kwargs)
+        try:
+            r.raise_for_status()
+            r_json = r.json()
+            print(json.dumps(r_json, indent=4))
+            return r_json
+        except json.JSONDecodeError:
+            return r.text
+        except:
+            print(r.headers)
+            print(r.request.headers)
+            r.request.read()
+            print(r.request._content)
+            raise
+
+
+class AsyncFreeleticsClient(BaseClient):
+
+    _SESSION = httpx.AsyncClient
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.close()
+
+    async def close(self) -> None:
+        await self._session.aclose()
+
+    async def request(self, method, url, **kwargs):
+        r = await self._session.request(method, url, **kwargs)
+        try:
+            r.raise_for_status()
+            r_json = r.json()
+            print(json.dumps(r_json, indent=4))
+            return r_json
+        except json.JSONDecodeError:
+            return r.text
+        except:
+            print(r.headers)
+            print(r.request.headers)
+            raise
 
