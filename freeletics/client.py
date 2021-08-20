@@ -5,7 +5,6 @@ Inspired from http://topu.ch/it/reverse-engineering-des-freeletics-apis/
 
 import json
 import logging
-from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -21,12 +20,19 @@ class BaseClient:
 
     _SESSION = None
 
-    def __init__(self,
-                 id_token: Optional[str] = None,
-                 refresh_token: Optional[str] = None,
-                 user_id: Optional[int] = None,
-                 detect_user_id: bool = False):
+    def __init__(self):
+        headers = {
+            'Accept': 'application/json',
+            'Accept-Encoding': 'br;q=1.0, gzip;q=0.9, deflate;q=0.8'
+        }
 
+        self._session = self._SESSION(headers=headers, base_url=cs.BASE_URL)
+
+    @classmethod
+    def from_token(cls, id_token: Optional[str] = None,
+                   refresh_token: Optional[str] = None,
+                   user_id: Optional[int] = None,
+                   detect_user_id: bool = False):
         if id_token is not None:
             id_token = IdToken(id_token, user_id)
 
@@ -38,19 +44,14 @@ class BaseClient:
                     raise Exception('Can not detect user id, no id token provided')
 
             user_id = user_id or id_token.user_id
-            refresh_token = RefreshToken(refresh_token, user_id)            
+            refresh_token = RefreshToken(refresh_token, user_id)
 
-        headers = {
-            'Accept': 'application/json',
-            'Accept-Encoding': 'br;q=1.0, gzip;q=0.9, deflate;q=0.8'
-        }
-
-        self._session = self._SESSION(headers=headers, base_url=cs.BASE_URL)
-
-        self._session.auth = FreeleticsAuth(
+        cls = cls()
+        cls._session.auth = FreeleticsAuth(
             id_token=id_token,
             refresh_token=refresh_token,
-            session=self._session)
+            session=cls._session)
+        return cls
 
     @property
     def is_authenticated(self):
@@ -65,7 +66,7 @@ class BaseClient:
     def request(self, method, url, **kwargs):
         raise NotImplementedError
 
-    def login(self, username, password):
+    def _get_login_response(self, username, password):
         """
         Does not work at this moment. Server raises a HTTP Status Code 426.
         Login request have to be signed using a `X-Authorization` and 
@@ -75,16 +76,18 @@ class BaseClient:
                 process. Using signing headers from a fresh login with the
                 iOS Freeletics App let me login with my Client, if the request
                 body is formed (remove whitespaces) like the iOS App does.
+        Update 2: Thanks to the Tipp from here 
+                  (https://freeletics.engineering/2019/10/30/shared_login.html)
+                  I have a working workarount to login. Simply using User-Agent
+                  from Nutrion App.
         """
-        print('This method doesnt work at this time')
         url = '/user/v2/password/authentication'
 
-        now = datetime.utcnow().replace(tzinfo=timezone.utc)
-        now_ts = round(now.timestamp() * 1000)
         headers = {
-            'X-Authorization': 'None',
-            'X-Authorization-Timestamp': str(now_ts),
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'User-Agent': 'nutrition-ios-1083 (iPhone; iOS 14.7.1; Nutrition '
+                          '1.30.1; com.freeletics.nutrition; en_GB; BST; '
+                          'release)'
         }
 
         data = {
@@ -226,7 +229,9 @@ class BaseClient:
             'refresh_token': self._session.auth.refresh_token.token,
             'user_id': self._session.auth.refresh_token.user_id
         }
-        return self.request('DELETE', url, params=params)
+        r = self.request('DELETE', url, params=params)
+        self._session.auth = None
+        return r
 
 
 class FreeleticsClient(BaseClient):
@@ -246,18 +251,23 @@ class FreeleticsClient(BaseClient):
         r = self._session.request(method, url, **kwargs)
         try:
             r.raise_for_status()
-            r_json = r.json()
-            print(json.dumps(r_json, indent=4))
-            return r_json
+            return r.json(), r.headers
         except json.JSONDecodeError:
-            return r.text
-        except:
-            print(r.headers)
-            print(r.request.headers)
-            r.request.read()
-            print(r.request._content)
-            raise
+            return r.text, r.headers
 
+    def login(self, username, password):
+        data, _ = self._get_login_response(
+            username=username, password=password)
+        user_id = data['user']['fl_uid']
+        auth = data['authentication']
+        id_token = IdToken(token=auth['id_token'], user_id=user_id)
+        refresh_token = RefreshToken(token=auth['refresh_token'], user_id=user_id)
+
+        self._session.auth = FreeleticsAuth(
+            id_token=id_token,
+            refresh_token=refresh_token,
+            session=self._session)
+        
 
 class AsyncFreeleticsClient(BaseClient):
 
@@ -276,13 +286,19 @@ class AsyncFreeleticsClient(BaseClient):
         r = await self._session.request(method, url, **kwargs)
         try:
             r.raise_for_status()
-            r_json = r.json()
-            print(json.dumps(r_json, indent=4))
-            return r_json
+            return r.json(), r.headers
         except json.JSONDecodeError:
-            return r.text
-        except:
-            print(r.headers)
-            print(r.request.headers)
-            raise
+            return r.text, r.headers
 
+    async def login(self, username, password):
+        data, _ = await self._get_login_response(
+            username=username, password=password)
+        user_id = data['user']['fl_uid']
+        auth = data['authentication']
+        id_token = IdToken(token=auth['id_token'], user_id=user_id)
+        refresh_token = RefreshToken(token=auth['refresh_token'], user_id=user_id)
+
+        self._session.auth = FreeleticsAuth(
+            id_token=id_token,
+            refresh_token=refresh_token,
+            session=self._session)
