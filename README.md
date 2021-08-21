@@ -12,7 +12,7 @@ Working on data models for API response and ETag/If-None-Match header to reduce 
 ## Basic Usage
 
 ```python
-from freeletics.client import FreeleticsClient 
+from freeletics import FreeleticsClient 
 
 with FreeleticsClient() as client:
     client.login(USERNAME, PASSWORD)
@@ -21,4 +21,19 @@ with FreeleticsClient() as client:
     client.logout()
 ```
 
-Do not forget to logout. Otherwise the refresh token will not be deleted on the server. I does not know what will happend, if you have multiple unused refresh tokens.
+**Do not forget to logout. Otherwise the refresh token will not be deleted on the server. I does not know what will happend, if you have multiple unused refresh tokens.**
+
+## Advanced Usage
+
+If you do not want to login everytime, you can reuse the session this way:
+
+```python
+from freeletics import FreeleticsClient 
+
+with FreeleticsClient() as client:
+    client.login(USERNAME, PASSWORD)
+    cred = client.get_credentials()
+
+with FreeleticsClient.from_credentials(**cred) as client:
+    ...
+```

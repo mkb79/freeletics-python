@@ -29,10 +29,10 @@ class BaseClient:
         self._session = self._SESSION(headers=headers, base_url=cs.BASE_URL)
 
     @classmethod
-    def from_token(cls, id_token: Optional[str] = None,
-                   refresh_token: Optional[str] = None,
-                   user_id: Optional[int] = None,
-                   detect_user_id: bool = False):
+    def from_credentials(cls, id_token: Optional[str] = None,
+                         refresh_token: Optional[str] = None,
+                         user_id: Optional[int] = None,
+                         detect_user_id: bool = False):
         if id_token is not None:
             id_token = IdToken(id_token, user_id)
 
@@ -52,6 +52,14 @@ class BaseClient:
             refresh_token=refresh_token,
             session=cls._session)
         return cls
+
+    def get_credentials(self):
+        return {
+            'id_token': self._session.auth.id_token.token,
+            'refresh_token': self._session.auth.refresh_token.token,
+            'user_id': self._session.auth.refresh_token.user_id
+            
+        }
 
     @property
     def is_authenticated(self):
@@ -267,6 +275,8 @@ class FreeleticsClient(BaseClient):
             id_token=id_token,
             refresh_token=refresh_token,
             session=self._session)
+
+        logger.info('Logged in as ' + username)
         
 
 class AsyncFreeleticsClient(BaseClient):
@@ -302,3 +312,5 @@ class AsyncFreeleticsClient(BaseClient):
             id_token=id_token,
             refresh_token=refresh_token,
             session=self._session)
+
+        logger.info('Logged in as ' + username)
