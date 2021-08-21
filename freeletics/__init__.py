@@ -1,1 +1,1 @@
-from .client import AsyncFreeleticsClient, FreeleticsClient
+from ._client import AsyncFreeleticsClient, FreeleticsClient
