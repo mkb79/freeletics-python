@@ -121,8 +121,8 @@ v7/athlete/achievements/badges/{slug},GET,,,
 v7/athlete/progress,GET,,,
 v7/athlete/progress/skill_paths/{slug},GET,,,
 v7/base_activities/{slug},GET,,,"{""X-Requires-Exercise-Sync: ""}"
-v7/calendar,GET,,,
-v7/calendar/days/{date},GET,distance_unit_system/weight_unit_system/skill_paths_enabled,,
+v7/calendar,GET,,,Need Payment-Token Header with token from /payment/v3/claims
+v7/calendar/days/{date},GET,distance_unit_system/weight_unit_system/skill_paths_enabled,,Need Payment-Token Header with token from /payment/v3/claims
 v7/coach/personalized_plans,POST,,,
 v7/coach/personalized_plans/current/finish,POST,,,
 v7/coach/personalized_plans/current/start,POST,,,

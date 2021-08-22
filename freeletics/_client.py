@@ -1,19 +1,17 @@
-"""
-Inspired from http://topu.ch/it/reverse-engineering-des-freeletics-apis/
-"""
-
-
 import json
 import logging
 from typing import Optional
 
 import httpx
 
-from . import _constants as cs
-from ._auth import FreeleticsAuth, IdToken, RefreshToken
+from ._auth import FreeleticsAuth
+from ._models import IdToken, RefreshToken
 
 
 logger = logging.getLogger(__name__)
+
+
+BASE_URL = 'https://api.freeletics.com/'
 
 
 class BaseClient:
@@ -26,7 +24,7 @@ class BaseClient:
             'Accept-Encoding': 'br;q=1.0, gzip;q=0.9, deflate;q=0.8'
         }
 
-        self._session = self._SESSION(headers=headers, base_url=cs.BASE_URL)
+        self._session = self._SESSION(headers=headers, base_url=BASE_URL)
 
     @classmethod
     def from_credentials(cls, id_token: Optional[str] = None,
@@ -41,17 +39,18 @@ class BaseClient:
                 if not detect_user_id:
                     raise Exception('refresh token without user_id provided')
                 if detect_user_id and id_token is None:
-                    raise Exception('Can not detect user id, no id token provided')
+                    raise Exception('Can not detect user id, no id token '
+                                    'provided')
 
             user_id = user_id or id_token.user_id
             refresh_token = RefreshToken(refresh_token, user_id)
 
-        cls = cls()
-        cls._session.auth = FreeleticsAuth(
+        new_cls = cls()
+        new_cls._session.auth = FreeleticsAuth(
             id_token=id_token,
             refresh_token=refresh_token,
-            session=cls._session)
-        return cls
+            session=new_cls._session)
+        return new_cls
 
     def get_credentials(self):
         return {
@@ -107,6 +106,17 @@ class BaseClient:
         data = json.dumps(data, separators=(',', ':'))
         return self.request("POST", url, data=data, headers=headers, auth=None)
 
+    def _set_auth_from_login_response_data(self, data):
+        user_id = data['user']['fl_uid']
+        auth = data['authentication']
+        id_token = IdToken(token=auth['id_token'], user_id=user_id)
+        refresh_token = RefreshToken(token=auth['refresh_token'],
+                                     user_id=user_id)
+
+        self._session.auth = FreeleticsAuth(id_token=id_token,
+                                            refresh_token=refresh_token,
+                                            session=self._session)
+
     def profile(self):
         url = '/v4/profile'
         return self.request('GET', url)
@@ -114,7 +124,11 @@ class BaseClient:
     def payment(self):
         url = '/payment/v3/claims'
         params = {
-            'supported_brand_types': 'bodyweight-coach,nutrition-coach,gym-coach,running-coach,training-coach,training-nutrition-coach,mind-coach,mind-training-nutrition-coach'
+            'supported_brand_types': 'bodyweight-coach,nutrition-coach,'
+                                     'gym-coach,running-coach,'
+                                     'training-coach,'
+                                     'training-nutrition-coach,mind-coach,'
+                                     'mind-training-nutrition-coach'
         }
         return self.request('GET', url, params=params)
 
@@ -266,15 +280,7 @@ class FreeleticsClient(BaseClient):
     def login(self, username, password):
         data, _ = self._get_login_response(
             username=username, password=password)
-        user_id = data['user']['fl_uid']
-        auth = data['authentication']
-        id_token = IdToken(token=auth['id_token'], user_id=user_id)
-        refresh_token = RefreshToken(token=auth['refresh_token'], user_id=user_id)
-
-        self._session.auth = FreeleticsAuth(
-            id_token=id_token,
-            refresh_token=refresh_token,
-            session=self._session)
+        self._set_auth_from_login_response_data(data)
 
         logger.info('Logged in as ' + username)
         
@@ -303,14 +309,6 @@ class AsyncFreeleticsClient(BaseClient):
     async def login(self, username, password):
         data, _ = await self._get_login_response(
             username=username, password=password)
-        user_id = data['user']['fl_uid']
-        auth = data['authentication']
-        id_token = IdToken(token=auth['id_token'], user_id=user_id)
-        refresh_token = RefreshToken(token=auth['refresh_token'], user_id=user_id)
-
-        self._session.auth = FreeleticsAuth(
-            id_token=id_token,
-            refresh_token=refresh_token,
-            session=self._session)
+        self._set_auth_from_login_response_data(data)
 
         logger.info('Logged in as ' + username)
