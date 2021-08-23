@@ -70,6 +70,10 @@ class BaseClient:
                 return True
         return False
 
+    @property
+    def user_id(self):
+        return self._session.auth.id_token.user_id
+
     def request(self, method, url, **kwargs):
         raise NotImplementedError
 
@@ -241,9 +245,22 @@ class BaseClient:
         url = '/social/v1/feed'
         return self.request('GET', url)
 
-    def user_activities(self, user_id):
+    def user_activities(self, user_id=None, page=None):
+        user_id = user_id or self.user_id
+        headers = {}
+        if page is not None:
+            headers['page'] = str(page)
         url = f'/social/v1/users/{user_id}/activities'
-        return self.request('GET', url)
+        return self.request('GET', url, headers=headers)
+
+    def search_user(self, phrase=None, page=None):
+        data = {}
+        if phrase is not None:
+            data['phrase'] = phrase
+        if page is not None:
+            data['page'] = str(page)
+        url = 'v2/users/search'
+        return self.request('POST', url, json=data)
 
     def logout(self):
         url = '/user/v1/auth/logout'
