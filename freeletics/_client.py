@@ -56,8 +56,7 @@ class BaseClient:
         return {
             'id_token': self._session.auth.id_token.token,
             'refresh_token': self._session.auth.refresh_token.token,
-            'user_id': self._session.auth.refresh_token.user_id
-            
+            'user_id': self._session.auth.refresh_token.user_id            
         }
 
     @property
@@ -247,11 +246,11 @@ class BaseClient:
 
     def user_activities(self, user_id=None, page=None):
         user_id = user_id or self.user_id
-        headers = {}
+        params = {}
         if page is not None:
-            headers['page'] = str(page)
+            params['page'] = str(page)
         url = f'/social/v1/users/{user_id}/activities'
-        return self.request('GET', url, headers=headers)
+        return self.request('GET', url, params=params)
 
     def search_user(self, phrase=None, page=None):
         data = {}
