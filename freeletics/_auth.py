@@ -7,7 +7,6 @@ import httpx
 
 from ._models import IdToken, RefreshToken
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -56,7 +55,7 @@ class FreeleticsAuth(httpx.Auth):
     def _set_auth_header(self, request) -> None:
         request.headers['Authorization'] = 'Bearer ' + self.id_token.token
 
-    def sync_auth_flow(self, request):
+    def sync_auth_flow(self, request) -> httpx.Request:
         with self._sync_lock:
             if self.id_token is None:
                 if self.refresh_token is None:
@@ -69,7 +68,7 @@ class FreeleticsAuth(httpx.Auth):
         self._set_auth_header(request)
         yield request
 
-    async def async_auth_flow(self, request):
+    async def async_auth_flow(self, request) -> httpx.Request:
         async with self._async_lock:
             if self.id_token is None:
                 if self.refresh_token is None:
@@ -87,13 +86,13 @@ class FreeleticsAuth(httpx.Auth):
         id_token = IdToken(data['auth']['id_token'])
         self.id_token = id_token
 
-    def sync_update_id_token(self):
+    def sync_update_id_token(self) -> None:
         logger.info('Requesting new id_token')
 
         request = self._api_request_builder.update_id_token(
             refresh_token=self.refresh_token.token,
             user_id=self.refresh_token.user_id
-        )    
+        )
         response = self._session.send(request, auth=None)
         if response.status_code == 404:
             raise Exception('No internet connection or session expired. '
@@ -102,7 +101,7 @@ class FreeleticsAuth(httpx.Auth):
         self._set_token_from_response(response)
         logger.info('id_token refreshed')
 
-    async def async_update_id_token(self):
+    async def async_update_id_token(self) -> None:
         logger.info('Requesting new id_token')
 
         request = self._api_request_builder.update_id_token(
@@ -116,4 +115,3 @@ class FreeleticsAuth(httpx.Auth):
         response.raise_for_status()
         self._set_token_from_response(response)
         logger.info('id_token refreshed')
-

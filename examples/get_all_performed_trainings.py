@@ -4,7 +4,6 @@ import pathlib
 
 from freeletics import FreeleticsClient, AsyncFreeleticsClient
 
-
 USERNAME = 'INSERT YOUR USERNAME'
 PASSWORD = 'INSERT YOUR PASSWORD'
 FILENAME = 'INSERT TARGET JSON FILENAME'
@@ -25,7 +24,7 @@ async def async_main():
                     aod = i['relationships']['activity_object']['data']
                     if aod['type'] == 'training':
                         aids.append(aod['id'])
-            if not 'next' in r['links']:
+            if 'next' not in r['links']:
                 break
             page += 1
 
@@ -33,10 +32,10 @@ async def async_main():
         jobs = (
             client.get_performed_activities_by_id(i) for i in aids
         )
-        r = await asyncio.gather(*jobs)
-        activities = []
+        activities = await asyncio.gather(*jobs)
         file = pathlib.Path(FILENAME)
-        activities = json.dumps(activities, indent=4, default=lambda o: o.as_dict())
+        activities = json.dumps(activities, indent=4,
+                                default=lambda o: o.as_dict())
         file.write_text(activities)
 
         client.logout()
@@ -45,7 +44,6 @@ async def async_main():
 def sync_main():
     with FreeleticsClient() as client:
         client.login(USERNAME, PASSWORD)
-
 
         # collecting activities_ids
         aids = []
@@ -58,7 +56,7 @@ def sync_main():
                     aod = i['relationships']['activity_object']['data']
                     if aod['type'] == 'training':
                         aids.append(aod['id'])
-            if not 'next' in r['links']:
+            if 'next' not in r['links']:
                 break
             page += 1
 
@@ -69,7 +67,8 @@ def sync_main():
             activities.append(r)
 
         file = pathlib.Path(FILENAME)
-        activities = json.dumps(activities, indent=4, default=lambda o: o.as_dict())
+        activities = json.dumps(activities, indent=4,
+                                default=lambda o: o.as_dict())
         file.write_text(activities)
 
         client.logout()

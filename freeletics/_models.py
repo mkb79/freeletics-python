@@ -30,12 +30,12 @@ class BaseToken:
 
     @property
     def expires_datetime(self) -> datetime:
-        return datetime.utcfromtimestamp(self.expires_timestamp).\
+        return datetime.utcfromtimestamp(self.expires_timestamp). \
             replace(tzinfo=timezone.utc)
 
     @property
     def expires_in_seconds(self) -> float:
-        return (self.expires_datetime - datetime.now(timezone.utc)).\
+        return (self.expires_datetime - datetime.now(timezone.utc)). \
             total_seconds()
 
     @property
@@ -92,7 +92,7 @@ class RefreshToken:
 
 class CoreResponseModel(MutableMapping):
     def __init__(self,
-                 data: Dict[str, Any],
+                 data: Optional[Dict[str, Any]],
                  response: httpx.Response,
                  session: Union[httpx.Client, httpx.AsyncClient]) -> None:
         self._data = data
@@ -110,7 +110,7 @@ class CoreResponseModel(MutableMapping):
 
     def __iter__(self):
         return iter(self._data)
-    
+
     def __len__(self):
         return len(self._data)
 
@@ -128,23 +128,37 @@ class CoreResponseModel(MutableMapping):
     def as_dict(self) -> Dict[str, Any]:
         return self._data
 
-    def as_json(self, **options):
+    def as_json(self, **options) -> str:
         return json.dumps(self._data,
                           default=lambda o: o.as_dict(),
                           **options)
 
     @property
-    def etag(self):
+    def etag(self) -> str:
         if self.response is not None and 'ETag' in self.response.headers:
             return self.response.headers['ETag']
 
-    def update_from_request(self):
+    def update_from_request(self) -> 'CoreResponseModel':
         if self.etag is not None and self.request.method == 'GET':
             headers = {
                 'If-None-Match': self.etag
             }
             self.request.headers.update(headers)
         r = self._session.send(self.request)
+        self._response = r
+        if r.status_code != 304:
+            self.update(r.json())
+        return self
+
+
+class AsyncCoreResponseModel(CoreResponseModel):
+    async def update_from_request(self) -> 'AsyncCoreResponseModel':
+        if self.etag is not None and self.request.method == 'GET':
+            headers = {
+                'If-None-Match': self.etag
+            }
+            self.request.headers.update(headers)
+        r = await self._session.send(self.request)
         self._response = r
         if r.status_code != 304:
             self.update(r.json())
