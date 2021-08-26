@@ -1,12 +1,12 @@
 import asyncio
 import logging
 import threading
-
 from typing import Optional, Union
 
 import httpx
 
 from ._models import IdToken, RefreshToken
+
 
 logger = logging.getLogger(__name__)
 
@@ -15,11 +15,13 @@ class FreeleticsAuth(httpx.Auth):
     def __init__(self,
                  id_token: Optional[IdToken],
                  refresh_token: Optional[RefreshToken],
-                 session: Union[httpx.Client, httpx.AsyncClient]) -> None:
+                 session: Union[httpx.Client, httpx.AsyncClient],
+                 api_request_builder) -> None:
 
         self._id_token = id_token
         self._refresh_token = refresh_token
         self._session = session
+        self._api_request_builder = api_request_builder
         self._sync_lock = threading.RLock()
         self._async_lock = asyncio.Lock()
 
@@ -80,13 +82,6 @@ class FreeleticsAuth(httpx.Auth):
         self._set_auth_header(request)
         yield request
 
-    def _send_update_id_token_request(self) -> httpx.Response:
-        data = {
-          "user_id": self.refresh_token.user_id,
-          "refresh_token": self.refresh_token.token
-        }
-        return self._session.post('/user/v1/auth/refresh', json=data, auth=None)
-
     def _set_token_from_response(self, response: httpx.Response) -> None:
         data = response.json()
         id_token = IdToken(data['auth']['id_token'])
@@ -95,7 +90,14 @@ class FreeleticsAuth(httpx.Auth):
     def sync_update_id_token(self):
         logger.info('Requesting new id_token')
 
-        response = self._send_update_id_token_request()
+        request = self._api_request_builder.update_id_token(
+            refresh_token=self.refresh_token.token,
+            user_id=self.refresh_token.user_id
+        )    
+        response = self._session.send(request, auth=None)
+        if response.status_code == 404:
+            raise Exception('No internet connection or session expired. '
+                            'Please try to login again.')
         response.raise_for_status()
         self._set_token_from_response(response)
         logger.info('id_token refreshed')
@@ -103,7 +105,15 @@ class FreeleticsAuth(httpx.Auth):
     async def async_update_id_token(self):
         logger.info('Requesting new id_token')
 
-        response = await self._send_update_id_token_request()
+        request = self._api_request_builder.update_id_token(
+            refresh_token=self.refresh_token.token,
+            user_id=self.refresh_token.user_id
+        )
+        response = await self._session.send(request, auth=None)
+        if response.status_code == 404:
+            raise Exception('No internet connection or session expired. '
+                            'Please try to login again.')
         response.raise_for_status()
         self._set_token_from_response(response)
         logger.info('id_token refreshed')
+

@@ -1,17 +1,17 @@
 import json
 import logging
-from typing import Optional
+from typing import Optional, Union
 
 import httpx
 
+from ._api import ApiRequestBuilder
 from ._auth import FreeleticsAuth
-from ._models import IdToken, RefreshToken
+from ._models import CoreResponseModel, IdToken, RefreshToken
 
 
 logger = logging.getLogger(__name__)
 
-
-BASE_URL = 'https://api.freeletics.com/'
+BASE_URL = 'https://api.freeletics.com'
 
 
 class BaseClient:
@@ -25,6 +25,7 @@ class BaseClient:
         }
 
         self._session = self._SESSION(headers=headers, base_url=BASE_URL)
+        self._api_request_builder = ApiRequestBuilder(self._session)
 
     @classmethod
     def from_credentials(cls, id_token: Optional[str] = None,
@@ -49,7 +50,8 @@ class BaseClient:
         new_cls._session.auth = FreeleticsAuth(
             id_token=id_token,
             refresh_token=refresh_token,
-            session=new_cls._session)
+            session=new_cls._session,
+            api_request_builder=new_cls._api_request_builder)
         return new_cls
 
     def get_credentials(self):
@@ -71,205 +73,122 @@ class BaseClient:
 
     @property
     def user_id(self):
-        return self._session.auth.id_token.user_id
+        if self._session.auth.id_token is not None:
+            return self._session.auth.id_token.user_id
+        else:
+            return self._session.auth.refresh_token.user_id
 
-    def request(self, method, url, **kwargs):
-        raise NotImplementedError
-
-    def _get_login_response(self, username, password):
-        """
-        Does not work at this moment. Server raises a HTTP Status Code 426.
-        Login request have to be signed using a `X-Authorization` and 
-        `X-Authorization-Timestamp` header. 
-        Have to find out how X-Authorization token is created.
-        Update: Have found out that the request body is part of the signing
-                process. Using signing headers from a fresh login with the
-                iOS Freeletics App let me login with my Client, if the request
-                body is formed (remove whitespaces) like the iOS App does.
-        Update 2: Thanks to the Tipp from here 
-                  (https://freeletics.engineering/2019/10/30/shared_login.html)
-                  I have a working workarount to login. Simply using User-Agent
-                  from Nutrion App.
-        """
-        url = '/user/v2/password/authentication'
-
-        headers = {
-            'Content-Type': 'application/json',
-            'User-Agent': 'nutrition-ios-1083 (iPhone; iOS 14.7.1; Nutrition '
-                          '1.30.1; com.freeletics.nutrition; en_GB; BST; '
-                          'release)'
-        }
-
-        data = {
-            "authentication": {
-                "email": username,
-                "password": password
-            }
-        }
-        data = json.dumps(data, separators=(',', ':'))
-        return self.request("POST", url, data=data, headers=headers, auth=None)
-
-    def _set_auth_from_login_response_data(self, data):
+    def _set_auth_from_login_response(self, response):
+        data = response.as_dict()
         user_id = data['user']['fl_uid']
         auth = data['authentication']
         id_token = IdToken(token=auth['id_token'], user_id=user_id)
         refresh_token = RefreshToken(token=auth['refresh_token'],
                                      user_id=user_id)
 
-        self._session.auth = FreeleticsAuth(id_token=id_token,
-                                            refresh_token=refresh_token,
-                                            session=self._session)
+        self._session.auth = FreeleticsAuth(
+            id_token=id_token,
+            refresh_token=refresh_token,
+            session=self._session,
+            api_request_builder=self._api_request_builder)
 
-    def profile(self):
-        url = '/v4/profile'
-        return self.request('GET', url)
+    def get_calendar(self, payment_token):
+        request = self._api_request_builder.get_calendar(payment_token)
+        return self._send(request)
 
-    def payment(self):
-        url = '/payment/v3/claims'
-        params = {
-            'supported_brand_types': 'bodyweight-coach,nutrition-coach,'
-                                     'gym-coach,running-coach,'
-                                     'training-coach,'
-                                     'training-nutrition-coach,mind-coach,'
-                                     'mind-training-nutrition-coach'
-        }
-        return self.request('GET', url, params=params)
+    def get_calendar_by_date(self,
+                             date: str,
+                             payment_token: str,
+                             distance_unit_system: str = 'metric',
+                             weight_unit_system: str = 'metric',
+                             skill_paths_enabled: str = 'true'):
+        request = self._api_request_builder.get_calendar_by_date(
+            date=date,
+            payment_token=payment_token,
+            distance_unit_system=distance_unit_system,
+            weight_unit_system=weight_unit_system,
+            skill_paths_enabled=skill_paths_enabled)
+        return self._send(request)
 
-    def payment_trainig_coach(self, user_id):
-        url = f'/payment/v1/claims/training-coach/{user_id}'
-        return self.request('GET', url)
+    def get_coach_exercises(self):
+        request = self._api_request_builder.get_coach_exercises()
+        return self._send(request)
 
-    def status_app(self):
-        url = '/user/v1/status/bodyweight/'
-        return self.request('GET', url)
+    def get_coach_settings(self):
+        request = self._api_request_builder.get_coach_settings()
+        return self._send(request)
 
-    def messaging(self):
-        url = '/messaging/v1/profile'
-        return self.request('GET', url)
+    def get_coach_workouts_god(self):
+        request = self._api_request_builder.get_coach_workouts(type_='god')
+        return self._send(request)
 
-    def coach_settings(self):
-        url = '/v5/coach/settings'
-        return self.request('GET', url)
+    def get_coach_workouts_exercise(self):
+        request = self._api_request_builder.get_coach_workouts(type_='exercise_workout')
+        return self._send(request)
 
-    def coach_exercise(self):
-        url = '/v5/coach/exercises'
-        return self.request('GET', url)
+    def get_coach_workouts_run(self):
+        request = self._api_request_builder.get_coach_workouts(type_='run')
+        return self._send(request)
 
-    def status_general(self):
-        url = '/user/v1/status/general/'
-        return self.request('GET', url)
+    def get_coach_workouts_cooldown(self):
+        request = self._api_request_builder.get_coach_workouts(type_='cooldown')
+        return self._send(request)
 
-    def coach_workouts_god(self):
-        url = '/v5/coach/workouts'
-        params = {
-            'type': 'god'
-        }
-        return self.request('GET', url, params=params)
+    def get_coach_workouts_warmup(self):
+        request = self._api_request_builder.get_coach_workouts(type_='warmup')
+        return self._send(request)
 
-    def coach_workouts_exercise(self):
-        url = '/v5/coach/workouts'
-        params = {
-            'type': 'exercise_workout'
-        }
-        return self.request('GET', url, params=params)
+    def get_messsging_profile(self):
+        request = self._api_request_builder.get_messsging_profile()
+        return self._send(request)
 
-    def coach_workouts_run(self):
-        url = '/v5/coach/workouts'
-        params = {
-            'type': 'run'
-        }
-        return self.request('GET', url, params=params)
+    def get_payment_claims(self, supported_brand_types: Optional[str] = None):
+        request = self._api_request_builder.get_payment_claims(supported_brand_types)
+        return self._send(request)
 
-    def coach_workouts_cooldown(self):
-        url = '/v5/coach/workouts'
-        params = {
-            'type': 'cooldown'
-        }
-        return self.request('GET', url, params=params)
-
-    def coach_workouts_warmup(self):
-        url = '/v5/coach/workouts'
-        params = {
-            'type': 'warmup'
-        }
-        return self.request('GET', url, params=params)
-
-    def best_trainings(self, user_id):
-        url = f'/v3/coach/users/{user_id}/trainings/best'
-        return self.request('GET', url)
-
-    def training_coach(self, user_id):
-        url = f'/payment/v1/claims/training-coach/{user_id}'
-        return self.request('GET', url)
-
-    def calendar(self):
-        url = '/v7/calendar'
-        return self.request('GET', url)
-
-    def calendar_days(self, day):
-        """
-        .. note::
-           date format: 2021-08-17
-        """
-        url = f'/v7/calendar/days/{day}'
-        params = {
-            'distance_unit_system': 'metric',
-            'skill_paths_enabled': 'true',
-            'weight_unit_system': 'metric'
-        }
-        return self.request('GET', url, params=params)
-
-    def coach_session(self, session_id):
-        url = f'/v6/coach/sessions/{session_id}'
-        return self.request('GET', url)
-
-    def coach_session_summary(self, session_id):
-        url = f'/v6/coach/sessions/{session_id}/summary'
-        params = {
-            'distance_unit_system': 'metric',
-            'skill_paths_enabled': 'true',
-            'weight_unit_system': 'metric'
-        }
-        return self.request('GET', url, params=params)
-
-    def planned_activities(self, activity_id):
-        url = f'/v6/planned_activities/{activity_id}'
-        return self.request('GET', url)
-
-    def performed_activities(self, activity_id):
-        url = f'/v6/performed_activities/{activity_id}'
-        return self.request('GET', url)
-
-    def social_feed(self):
-        url = '/social/v1/feed'
-        return self.request('GET', url)
-
-    def user_activities(self, user_id=None, page=None):
+    def get_payment_training_coach_by_userid(self, user_id: Optional[Union[str, int]] = None):
         user_id = user_id or self.user_id
-        params = {}
-        if page is not None:
-            params['page'] = str(page)
-        url = f'/social/v1/users/{user_id}/activities'
-        return self.request('GET', url, params=params)
+        request = self._api_request_builder.get_payment_training_coach_by_userid(user_id)
+        return self._send(request)
 
-    def search_user(self, phrase=None, page=None):
-        data = {}
-        if phrase is not None:
-            data['phrase'] = phrase
-        if page is not None:
-            data['page'] = str(page)
-        url = 'v2/users/search'
-        return self.request('POST', url, json=data)
+    def get_performed_activities_by_id(self, activity_id: Union[str, int]):
+        request = self._api_request_builder.get_performed_activities_by_id(activity_id)
+        return self._send(request)
+
+    def get_planned_activities_by_id(self, activity_id: Union[str, int]):
+        request = self._api_request_builder.get_planned_activities_by_id(activity_id)
+        return self._send(request)
+
+    def get_social_feeds(self):
+        request = self._api_request_builder.get_social_feeds()
+        return self._send(request)
+
+    def get_status_bodyweight_app(self):
+        request = self._api_request_builder.get_status_bodyweight_app()
+        return self._send(request)
+
+    def get_user_activities_by_id(self,
+                                  user_id: Optional[Union[str, int]] = None,
+                                  page: Optional[Union[str, int]] = None):
+        user_id = user_id or self.user_id
+        request = self._api_request_builder.get_user_activities_by_id(user_id=user_id, page=page)
+        return self._send(request)
+
+    def get_user_profile(self):
+        request = self._api_request_builder.get_user_profile()
+        return self._send(request)
+
+    def get_user_status_general(self):
+        request = self._api_request_builder.get_user_status_general()
+        return self._send(request)
 
     def logout(self):
-        url = '/user/v1/auth/logout'
-        params = {
-            'refresh_token': self._session.auth.refresh_token.token,
-            'user_id': self._session.auth.refresh_token.user_id
-        }
-        r = self.request('DELETE', url, params=params)
+        request = self._api_request_builder.logout_user(
+            refresh_token=self._session.auth.refresh_token.token,
+            user_id=self._session.auth.refresh_token.user_id)
+        response = self._send(request)
         self._session.auth = None
-        return r
+        return response
 
 
 class FreeleticsClient(BaseClient):
@@ -287,16 +206,30 @@ class FreeleticsClient(BaseClient):
 
     def request(self, method, url, **kwargs):
         r = self._session.request(method, url, **kwargs)
+        r.raise_for_status()
         try:
-            r.raise_for_status()
-            return r.json(), r.headers
+            return CoreResponseModel(
+                data=r.json(),
+                response=r,
+                session=self._session)
         except json.JSONDecodeError:
-            return r.text, r.headers
+            return r.text
+
+    def _send(self, request, **kwargs):
+        r = self._session.send(request, **kwargs)
+        r.raise_for_status()
+        try:
+            return CoreResponseModel(
+                data=r.json(),
+                response=r,
+                session=self._session)
+        except json.JSONDecodeError:
+            return r.text
 
     def login(self, username, password):
-        data, _ = self._get_login_response(
-            username=username, password=password)
-        self._set_auth_from_login_response_data(data)
+        request = self._api_request_builder.login_user(username=username, password=password)
+        response = self._send(request, auth=None)
+        self._set_auth_from_login_response(response)
 
         logger.info('Logged in as ' + username)
         
@@ -316,15 +249,30 @@ class AsyncFreeleticsClient(BaseClient):
 
     async def request(self, method, url, **kwargs):
         r = await self._session.request(method, url, **kwargs)
+        r.raise_for_status()
         try:
-            r.raise_for_status()
-            return r.json(), r.headers
+            return CoreResponseModel(
+                data=r.json(),
+                response=r,
+                session=self._session)
         except json.JSONDecodeError:
-            return r.text, r.headers
+            return r.text
+
+    async def _send(self, request, **kwargs):
+        r = await self._session.send(request, **kwargs)
+        r.raise_for_status()
+        try:
+            return CoreResponseModel(
+                data=r.json(),
+                response=r,
+                session=self._session)
+        except json.JSONDecodeError:
+            return r.text
 
     async def login(self, username, password):
-        data, _ = await self._get_login_response(
-            username=username, password=password)
-        self._set_auth_from_login_response_data(data)
+        request = self._api_request_builder.login_user(username=username, password=password)
+        response = await self._send(request, auth=None)
+        self._set_auth_from_login_response(response)
 
         logger.info('Logged in as ' + username)
+

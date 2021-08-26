@@ -1,6 +1,9 @@
+import json
+from collections.abc import MutableMapping
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
+import httpx
 import jwt
 
 
@@ -85,3 +88,64 @@ class RefreshToken:
     @property
     def user_id(self) -> int:
         return self._user_id
+
+
+class CoreResponseModel(MutableMapping):
+    def __init__(self,
+                 data: Dict[str, Any],
+                 response: httpx.Response,
+                 session: Union[httpx.Client, httpx.AsyncClient]) -> None:
+        self._data = data
+        self._response = response
+        self._session = session
+
+    def __getitem__(self, key):
+        return self._data[self._keytransform(key)]
+
+    def __setitem__(self, key, value):
+        self._data[self._keytransform(key)] = value
+
+    def __delitem__(self, key):
+        del self._data[self._keytransform(key)]
+
+    def __iter__(self):
+        return iter(self._data)
+    
+    def __len__(self):
+        return len(self._data)
+
+    def _keytransform(self, key):
+        return key
+
+    @property
+    def response(self) -> httpx.Response:
+        return self._response
+
+    @property
+    def request(self) -> httpx.Request:
+        return self.response.request
+
+    def as_dict(self) -> Dict[str, Any]:
+        return self._data
+
+    def as_json(self, **options):
+        return json.dumps(self._data,
+                          default=lambda o: o.as_dict(),
+                          **options)
+
+    @property
+    def etag(self):
+        if self.response is not None and 'ETag' in self.response.headers:
+            return self.response.headers['ETag']
+
+    def update_from_request(self):
+        if self.etag is not None and self.request.method == 'GET':
+            headers = {
+                'If-None-Match': self.etag
+            }
+            self.request.headers.update(headers)
+        r = self._session.send(self.request)
+        self._response = r
+        if r.status_code != 304:
+            self.update(r.json())
+        return self

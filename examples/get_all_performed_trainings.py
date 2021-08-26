@@ -18,7 +18,7 @@ async def async_main():
         aids = []
         page = 1
         while True:
-            r, _ = await client.user_activities(page=page)
+            r = await client.get_user_activities_by_id(page=page)
             data = r['data']
             for i in data:
                 if i['type'] == 'training_completed':
@@ -31,14 +31,12 @@ async def async_main():
 
         # get activities from ids
         jobs = (
-            client.performed_activities(i) for i in aids
+            client.get_performed_activities_by_id(i) for i in aids
         )
         r = await asyncio.gather(*jobs)
         activities = []
-        for i in r:
-            activities.append(i[0])  # we dont need the headers
         file = pathlib.Path(FILENAME)
-        activities = json.dumps(activities, indent=4)
+        activities = json.dumps(activities, indent=4, default=lambda o: o.as_dict())
         file.write_text(activities)
 
         client.logout()
@@ -53,7 +51,7 @@ def sync_main():
         aids = []
         page = 1
         while True:
-            r, _ = client.user_activities(page=page)
+            r = client.get_user_activities_by_id(page=page)
             data = r['data']
             for i in data:
                 if i['type'] == 'training_completed':
@@ -67,11 +65,11 @@ def sync_main():
         # get activities from ids
         activities = []
         for aid in aids:
-            r, _ = client.performed_activities(aid)
+            r = client.get_performed_activities_by_id(aid)
             activities.append(r)
 
         file = pathlib.Path(FILENAME)
-        activities = json.dumps(activities, indent=4)
+        activities = json.dumps(activities, indent=4, default=lambda o: o.as_dict())
         file.write_text(activities)
 
         client.logout()
