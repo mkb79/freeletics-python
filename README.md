@@ -37,3 +37,9 @@ with FreeleticsClient() as client:
 with FreeleticsClient.from_credentials(**cred) as client:
     ...
 ```
+
+Update:
+It seams that the Freeletics engineers have make there work. At this time refresh an id_token is not working anymore with my client. 
+
+@Freeletics engineers:
+It would be very helpful if you open your API. My goal  is only to get my personal training stats from the API. If there is a way please contact me.
