@@ -38,8 +38,8 @@ with FreeleticsClient.from_credentials(**cred) as client:
     ...
 ```
 
-Update:
-It seams that the Freeletics engineers have make there work. At this time refresh an id_token is not working anymore with my client. 
+Important note:
+Please be careful when the client refreshs the `id_token`. Do not use the old `id_token` again. Otherwise the Freeletics API server will quit this with a HTTP Error 404 (when the old `id_token` is expired) and your `refresh_token` will be invalid.
 
 @Freeletics engineers:
 It would be very helpful if you open your API. My goal  is only to get my personal training stats from the API. If there is a way please contact me.
