@@ -13,19 +13,12 @@ from ._models import (AsyncCoreResponseModel,
 
 logger = logging.getLogger(__name__)
 
-BASE_URL: str = 'https://api.freeletics.com'
-
 
 class FreeleticsClient:
     _SESSION = httpx.Client
 
     def __init__(self) -> None:
-        headers = {
-            'Accept': 'application/json',
-            'Accept-Encoding': 'br;q=1.0, gzip;q=0.9, deflate;q=0.8'
-        }
-
-        self._session = self._SESSION(headers=headers, base_url=BASE_URL)
+        self._session = self._SESSION()
         self._api_request_builder = ApiRequestBuilder(self._session)
         self._session.auth = FreeleticsAuth(
             id_token=None,

@@ -1,5 +1,3 @@
-test*.py
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -133,4 +131,6 @@ dmypy.json
 
 # PyCharm
 /.idea
-/response/*
+/src/*
+!/src/freeletics
+/src/freeletics/*.bak
