@@ -9,6 +9,27 @@
 
 Working on data models for API response and ETag/If-None-Match header to reduce traffic.
 
+## Requirements
+
+freeletics needs at least *Python 3.6*.
+
+It depends on the following packages:
+
+* httpx >= 0.18.0
+* pyjwt
+
+## Installation
+
+This package is not on PyPi at this moment. To install freeletics you have to clone it from this repo. 
+
+```shell
+
+git clone https://github.com/mkb79/freeletics-python.git
+cd freeletics-python
+pip install .
+
+```
+
 ## Basic Usage
 
 ```python
