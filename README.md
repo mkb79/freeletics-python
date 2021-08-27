@@ -16,8 +16,8 @@ from freeletics import FreeleticsClient
 
 with FreeleticsClient() as client:
     client.login(USERNAME, PASSWORD)
-    payment, header = client.payment()
-    profile, header = client.profile()
+    payment = client.get_payment_claims()
+    profile = client.get_user_profile()
     client.logout()
 ```
 
