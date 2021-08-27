@@ -93,7 +93,7 @@ class ApiRequestBuilder:
                                            params=params,
                                            **kwargs)
 
-    def custom_request(self, method: str, url: str, **kwargs) -> Request:
+    def request(self, method: str, url: str, **kwargs) -> Request:
         return self._build_request(method, url, **kwargs)
 
     def get_calendar(self, payment_token: str) -> Request:

@@ -42,7 +42,7 @@ class FreeleticsAuth(httpx.Auth):
 
     @refresh_token.setter
     def refresh_token(self, refresh_token: RefreshToken) -> None:
-        if self._refresh_token is not None:
+        if self.refresh_token is not None:
             raise Exception('Refresh Token can only be set once.')
 
         if self.id_token is not None and \
@@ -57,12 +57,9 @@ class FreeleticsAuth(httpx.Auth):
 
     def sync_auth_flow(self, request) -> httpx.Request:
         with self._sync_lock:
-            if self.id_token is None:
+            if self.id_token is None or self.id_token.expires_in_seconds < 20:
                 if self.refresh_token is None:
                     raise Exception('id_token and refresh_token not set')
-                else:
-                    self.sync_update_id_token()
-            elif self.id_token.expires_in_seconds < 20:
                 self.sync_update_id_token()
 
         self._set_auth_header(request)
@@ -70,12 +67,9 @@ class FreeleticsAuth(httpx.Auth):
 
     async def async_auth_flow(self, request) -> httpx.Request:
         async with self._async_lock:
-            if self.id_token is None:
+            if self.id_token is None or self.id_token.expires_in_seconds < 20:
                 if self.refresh_token is None:
                     raise Exception('id_token and refresh_token not set')
-                else:
-                    await self.async_update_id_token()
-            elif self.id_token.expires_in_seconds < 20:
                 await self.async_update_id_token()
 
         self._set_auth_header(request)

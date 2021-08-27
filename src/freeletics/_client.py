@@ -86,18 +86,8 @@ class FreeleticsClient:
             return self._session.auth.refresh_token.user_id
 
     def request(self, method, url, **kwargs) -> CoreResponseModel:
-        r = self._session.request(method, url, **kwargs)
-        r.raise_for_status()
-        try:
-            return CoreResponseModel(
-                data=r.json(),
-                response=r,
-                session=self._session)
-        except json.JSONDecodeError:
-            return CoreResponseModel(
-                data={},
-                response=r,
-                session=self._session)
+        request = self._api_request_builder.request(method, url, **kwargs)
+        return self.send(request)
 
     def send(self, request, **kwargs) -> CoreResponseModel:
         r = self._session.send(request, **kwargs)
@@ -280,18 +270,8 @@ class AsyncFreeleticsClient(FreeleticsClient):
         await self._session.aclose()
 
     async def request(self, method, url, **kwargs) -> AsyncCoreResponseModel:
-        r = await self._session.request(method, url, **kwargs)
-        r.raise_for_status()
-        try:
-            return AsyncCoreResponseModel(
-                data=r.json(),
-                response=r,
-                session=self._session)
-        except json.JSONDecodeError:
-            return AsyncCoreResponseModel(
-                data={},
-                response=r,
-                session=self._session)
+        request = self._api_request_builder.request(method, url, **kwargs)
+        return await self.send(request)
 
     async def send(self, request, **kwargs) -> AsyncCoreResponseModel:
         r = await self._session.send(request, **kwargs)
