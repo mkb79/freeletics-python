@@ -55,6 +55,25 @@ class FreeleticsAuth(httpx.Auth):
     def _set_auth_header(self, request) -> None:
         request.headers['Authorization'] = 'Bearer ' + self.id_token.token
 
+    def _set_token_from_response(self, response: httpx.Response) -> None:
+        if response.status_code != httpx.codes.CREATED:
+            if response.status_code == 404:
+                raise Exception('No internet connection or session expired. '
+                                'Please try to login again.')
+            else:
+                response.raise_for_status()
+
+        data = response.json()
+        id_token = IdToken(data['auth']['id_token'])
+        self.id_token = id_token
+        logger.info('set new id_token')
+
+    def _build_update_id_token_request(self):
+        return self._api_request_builder.update_id_token(
+            refresh_token=self.refresh_token.token,
+            user_id=self.refresh_token.user_id
+        )
+
     def sync_auth_flow(self, request) -> httpx.Request:
         with self._sync_lock:
             if self.id_token is None or self.id_token.expires_in_seconds < 20:
@@ -75,37 +94,17 @@ class FreeleticsAuth(httpx.Auth):
         self._set_auth_header(request)
         yield request
 
-    def _set_token_from_response(self, response: httpx.Response) -> None:
-        data = response.json()
-        id_token = IdToken(data['auth']['id_token'])
-        self.id_token = id_token
-
     def sync_update_id_token(self) -> None:
         logger.info('Requesting new id_token')
 
-        request = self._api_request_builder.update_id_token(
-            refresh_token=self.refresh_token.token,
-            user_id=self.refresh_token.user_id
-        )
+        request = self._build_update_id_token_request()
         response = self._session.send(request, auth=None)
-        if response.status_code == 404:
-            raise Exception('No internet connection or session expired. '
-                            'Please try to login again.')
-        response.raise_for_status()
         self._set_token_from_response(response)
-        logger.info('id_token refreshed')
 
     async def async_update_id_token(self) -> None:
         logger.info('Requesting new id_token')
 
-        request = self._api_request_builder.update_id_token(
-            refresh_token=self.refresh_token.token,
-            user_id=self.refresh_token.user_id
-        )
+        request = self._build_update_id_token_request()
         response = await self._session.send(request, auth=None)
-        if response.status_code == 404:
-            raise Exception('No internet connection or session expired. '
-                            'Please try to login again.')
-        response.raise_for_status()
         self._set_token_from_response(response)
-        logger.info('id_token refreshed')
+

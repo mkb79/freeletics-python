@@ -1,4 +1,5 @@
 import json
+import pathlib
 from collections.abc import MutableMapping
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
@@ -48,7 +49,7 @@ class BaseToken:
 
 
 class IdToken(BaseToken):
-    def __init__(self, token, user_id: Optional[int] = None) -> None:
+    def __init__(self, token: str, user_id: Optional[int] = None) -> None:
         super().__init__(token)
 
         assert 'standard' in self.audiences, 'Token is not a valid id token'
@@ -88,6 +89,65 @@ class RefreshToken:
     @property
     def user_id(self) -> int:
         return self._user_id
+
+
+class Credentials:
+    def __init__(self,
+                 id_token: Optional[str],
+                 refresh_token: Optional[str],
+                 user_id: Optional[int],
+                 detect_user_id: bool = False) -> None:
+
+        if id_token is not None:
+            id_token = IdToken(id_token, user_id)
+
+        if refresh_token is not None:
+            if user_id is None:
+                if not detect_user_id:
+                    raise Exception('refresh token without user_id provided')
+                if detect_user_id and id_token is None:
+                    raise Exception('Can not detect user id, no id token '
+                                    'provided')
+
+            user_id = user_id or id_token.user_id
+            refresh_token = RefreshToken(refresh_token, user_id)
+        self.id_token = id_token
+        self.refresh_token = refresh_token
+        self.user_id = user_id
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'Credentials':
+        return cls(
+            id_token=data['id_token'],
+            refresh_token=data['refresh_token'],
+            user_id=data['user_id']
+        )
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            'id_token': self.id_token.token,
+            'refresh_token': self.refresh_token.token,
+            'user_id': self.refresh_token.user_id
+        }
+
+    @classmethod
+    def from_json(cls, data) -> 'Credentials':
+        data = json.loads(data)
+        return cls.from_dict(data)
+
+    def as_json(self, **options) -> str:
+        return json.dumps(self.as_dict(), **options)
+
+    @classmethod
+    def from_file(cls, filename: str) -> 'Credentials':
+        file = pathlib.Path(filename)
+        data = file.read_text()
+        return cls.from_json(data)
+
+    def to_file(self, filename) -> None:
+        file = pathlib.Path(filename)
+        data = self.as_json()
+        file.write_text(data)
 
 
 class CoreResponseModel(MutableMapping):

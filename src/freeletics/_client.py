@@ -1,12 +1,13 @@
 import json
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Optional, Union
 
 import httpx
 
 from ._api import ApiRequestBuilder
 from ._auth import FreeleticsAuth
 from ._models import (AsyncCoreResponseModel,
+                      Credentials,
                       CoreResponseModel,
                       IdToken,
                       RefreshToken)
@@ -61,12 +62,12 @@ class FreeleticsClient:
         new_cls._session.auth.id_token = id_token
         return new_cls
 
-    def get_credentials(self) -> Dict[str, Any]:
-        return {
-            'id_token': self._session.auth.id_token.token,
-            'refresh_token': self._session.auth.refresh_token.token,
-            'user_id': self._session.auth.refresh_token.user_id
-        }
+    def get_credentials(self) -> Credentials:
+        return Credentials(
+            id_token=self._session.auth.id_token.token,
+            refresh_token=self._session.auth.refresh_token.token,
+            user_id=self._session.auth.refresh_token.user_id
+        )
 
     @property
     def is_authenticated(self) -> bool:

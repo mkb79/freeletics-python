@@ -49,12 +49,14 @@ with FreeleticsClient() as client:
 If you do not want to login everytime, you can reuse the session this way:
 
 ```python
-from freeletics import FreeleticsClient 
+from freeletics import Credentials, FreeleticsClient 
 
 with FreeleticsClient() as client:
     client.login(USERNAME, PASSWORD)
     cred = client.get_credentials()
+    cred.to_file(FILENAME)
 
+cred = Credentials.from_file(FILENAME).as_dict()
 with FreeleticsClient.from_credentials(**cred) as client:
     ...
 ```
