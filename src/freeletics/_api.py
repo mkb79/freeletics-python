@@ -70,7 +70,7 @@ class ApiRequestBuilder:
         """
         if params or self._params:
             merged_queryparams = QueryParams(self._params)
-            merged_queryparams.update(params)
+            merged_queryparams = merged_queryparams.merge(params)
             return merged_queryparams
         return params
 
