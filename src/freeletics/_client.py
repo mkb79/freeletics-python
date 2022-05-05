@@ -296,3 +296,12 @@ class AsyncFreeleticsClient(FreeleticsClient):
 
         logger.info('Logged in as ' + username)
         return response
+
+    async def logout(self) -> Union[AsyncCoreResponseModel, CoreResponseModel]:
+        request = self._api_request_builder.logout_user(
+            refresh_token=self._session.auth.refresh_token.token,
+            user_id=self._session.auth.refresh_token.user_id)
+        response = await self.send(request)
+        self._session.auth._refresh_token = None
+        self._session.auth._id_token = None
+        return response
