@@ -11,7 +11,7 @@ FILENAME = 'INSERT TARGET JSON FILENAME'
 
 async def async_main():
     async with AsyncFreeleticsClient() as client:
-        client.login(USERNAME, PASSWORD)
+        await client.login(USERNAME, PASSWORD)
 
         # collecting activities_ids
         aids = []
@@ -38,7 +38,7 @@ async def async_main():
                                 default=lambda o: o.as_dict())
         file.write_text(activities)
 
-        client.logout()
+        await client.logout()
 
 
 def sync_main():
