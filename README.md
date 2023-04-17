@@ -11,11 +11,11 @@ Working on data models for API response and ETag/If-None-Match header to reduce 
 
 ## Requirements
 
-freeletics needs at least *Python 3.6*.
+freeletics needs at least *Python 3.7*.
 
 It depends on the following packages:
 
-* httpx >= 0.18.0
+* httpx >= 0.24.0
 * pyjwt
 
 ## Installation
@@ -33,7 +33,7 @@ pip install .
 ## Basic Usage
 
 ```python
-from freeletics import FreeleticsClient 
+from freeletics import FreeleticsClient
 
 with FreeleticsClient() as client:
     client.login(USERNAME, PASSWORD)
@@ -42,11 +42,11 @@ with FreeleticsClient() as client:
     client.logout()
 ```
 
-**Do not forget to logout. Otherwise the refresh token will not be deleted on the server. I does not know what will happend, if you have multiple unused refresh tokens.**
+**Do not forget to log out. Otherwise, the refresh token will not be deleted on the server. I do not know what will happen, if you have multiple unused refresh tokens.**
 
 ## Advanced Usage
 
-If you do not want to login everytime, you can reuse the session this way:
+If you do not want to log in everytime, you can reuse the session this way:
 
 ```python
 from freeletics import Credentials, FreeleticsClient 
@@ -62,7 +62,7 @@ with FreeleticsClient.from_credentials(**cred) as client:
 ```
 
 Important note:
-Please be careful when the client refreshs the `id_token`. Do not use the old `id_token` again. Otherwise the Freeletics API server will quit this with a HTTP Error 404 (when the old `id_token` is expired) and your `refresh_token` will be invalid.
+Please be careful when the client refresh the `id_token`. Do not use the old `id_token` again. Otherwise, the Freeletics API server will quit this with an HTTP Error 404 (when the old `id_token` is expired) and your `refresh_token` will be invalid.
 
 @Freeletics engineers:
 It would be very helpful if you open your API. My goal  is only to get my personal training stats from the API. If there is a way please contact me.
