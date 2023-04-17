@@ -11,8 +11,8 @@ if sys.argv[-1] == 'publish':
     system('twine upload dist/*')
     sys.exit()
 
-if sys.version_info < (3, 6, 0):
-    raise RuntimeError("Freeletics requires Python 3.6.0+")
+if sys.version_info < (3, 7, 0):
+    raise RuntimeError("freeletics requires at least Python 3.7.0")
 
 here = pathlib.Path(__file__).parent
 
@@ -37,17 +37,17 @@ setup(
     author=read_from_file('__author__'),
     author_email=read_from_file('__author_email__'),
     classifiers=[
-         'Development Status :: 2 - Pre-Alpha',
-         'Intended Audience :: Developers',
-         'License :: OSI Approved :: GNU Affero General Public License v3',
-         'Programming Language :: Python :: 3.6',
-         'Programming Language :: Python :: 3.7',
-         'Programming Language :: Python :: 3.8',
-         'Programming Language :: Python :: 3.9',
-         'Programming Language :: Python :: 3.10'
+        'Development Status :: 2 - Pre-Alpha',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: GNU Affero General Public License v3',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11'
     ],
     install_requires=[
-        'httpx>=0.18.0',
+        'httpx>=0.24.0',
         'pyjwt'
     ],
     extras_require={
@@ -58,7 +58,7 @@ setup(
             'sphinx-autodoc-typehints'
         ]
     },
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     keywords='Freeletics, API, async',
     long_description=long_description,
     long_description_content_type='text/markdown',
