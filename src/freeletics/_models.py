@@ -52,7 +52,8 @@ class IdToken(BaseToken):
     def __init__(self, token: str, user_id: Optional[int] = None) -> None:
         super().__init__(token)
 
-        assert 'standard' in self.audiences, 'Token is not a valid id token'
+        if 'standard' not in self.audiences:
+            raise Exception('Token is not a valid id token')
 
         if user_id and user_id != self.user_id:
             raise Exception('user_id does not match id_token user_id')
@@ -65,8 +66,8 @@ class IdToken(BaseToken):
 class PaymentToken(BaseToken):
     def __init__(self, token) -> None:
         super().__init__(token)
-        assert 'payment_token' in self.audiences, 'Token is not a valid ' \
-                                                  'payment token '
+        if 'payment_token' not in self.audiences:
+            raise Exception('Token is not a valid payment token')
 
     @property
     def payment_status(self) -> List:
