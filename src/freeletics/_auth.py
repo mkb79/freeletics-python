@@ -107,4 +107,3 @@ class FreeleticsAuth(httpx.Auth):
         request = self._build_update_id_token_request()
         response = await self._session.send(request, auth=None)
         self._set_token_from_response(response)
-
