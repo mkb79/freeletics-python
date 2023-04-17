@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "freeletics"
+version = "0.0.dev3"
+description = "(A)Sync Interface for internal Freeletics API written in pure Python."
+authors = ["mkb79 <mkb79@hackitall.de>"]
+license = "GNU Affero General Public License v3"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.7"
+httpx = "^0.24.0"
+PyJWT = "^2.6.0"
+
+[tool.poetry.group.dev.dependencies]
+Sphinx = "^5.3"
+sphinx-rtd-theme = "^1.2.0"
+sphinxcontrib-httpdomain = "^1.8.1"
+sphinx-autodoc-typehints = "^1.23.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
