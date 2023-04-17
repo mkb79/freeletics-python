@@ -120,8 +120,7 @@ class ApiRequestBuilder:
             'skill_paths_enabled': skill_paths_enabled,
             'weight_unit_system': weight_unit_system
         }
-        return self._build_request('GET', url, headers=headers,
-                                           params=params)
+        return self._build_request('GET', url, headers=headers, params=params)
 
     def get_coach_exercises(self) -> Request:
         url = '/v5/coach/exercises'
@@ -139,7 +138,7 @@ class ApiRequestBuilder:
         params = {'type': type_}
         return self._build_request('GET', url, params=params)
 
-    def get_messsging_profile(self) -> Request:
+    def get_messaging_profile(self) -> Request:
         url = '/messaging/v1/profile'
         return self._build_request('GET', url)
 
@@ -198,17 +197,17 @@ class ApiRequestBuilder:
 
     def login_user(self, username: str, password: str) -> Request:
         """
-        Does not work at this moment. Server raises a HTTP Status Code 426.
+        Does not work at this moment. Server raises an HTTP Status Code 426.
         Login request have to be signed using a `X-Authorization` and 
         `X-Authorization-Timestamp` header. 
         Have to find out how X-Authorization token is created.
         Update: Have found out that the request body is part of the signing
                 process. Using signing headers from a fresh login with the
-                iOS Freeletics App let me login with my Client, if the request
+                iOS Freeletics App let me log in with my Client, if the request
                 body is formed (remove whitespaces) like the iOS App does.
         Update 2: Thanks to the Tipp from here 
                   (https://freeletics.engineering/2019/10/30/shared_login.html)
-                  I have a working workarount to login. Simply using User-Agent
+                  I have a working workaround to login. Simply using User-Agent
                   from Nutrion App.
         """
         url = '/user/v2/password/authentication'
@@ -222,8 +221,7 @@ class ApiRequestBuilder:
 
         data = {"authentication": {"email": username, "password": password}}
         # data = json.dumps(data, separators=(',', ':'))
-        return self._build_request("POST", url, json=data,
-                                           headers=headers)
+        return self._build_request("POST", url, json=data, headers=headers)
 
     def logout_user(self, refresh_token: str,
                     user_id: Union[str, int]) -> Request:
