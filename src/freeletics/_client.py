@@ -190,9 +190,9 @@ class FreeleticsClient:
         request = self._api_request_builder.get_coach_workouts(type_='warmup')
         return self.send(request)
 
-    def get_messsging_profile(self) -> Union[AsyncCoreResponseModel,
+    def get_messaging_profile(self) -> Union[AsyncCoreResponseModel,
                                              CoreResponseModel]:
-        request = self._api_request_builder.get_messsging_profile()
+        request = self._api_request_builder.get_messaging_profile()
         return self.send(request)
 
     def get_payment_claims(self,
