@@ -1,6 +1,7 @@
 from typing import Optional, Union
 
-from httpx._models import URL, Cookies, Headers, QueryParams, Request
+from httpx._models import URL, Cookies, Headers, Request
+from httpx._urls import QueryParams
 from httpx._types import (
     CookieTypes,
     HeaderTypes,
