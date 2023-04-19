@@ -1,6 +1,5 @@
 # Freeletics API Client (unofficial)
 
-
 **This Client communicate with the non-publicly [Freeletics](https://www.freeletics.com) API.**
 
 **This Client is still in progress. Help is welcome!**
@@ -11,16 +10,16 @@ Working on data models for API response and ETag/If-None-Match header to reduce 
 
 ## Requirements
 
-freeletics needs at least *Python 3.7*.
+freeletics needs at least _Python 3.8_.
 
 It depends on the following packages:
 
-* httpx >= 0.24.0
-* pyjwt
+- httpx >= 0.24.0
+- pyjwt
 
 ## Installation
 
-This package is not on PyPi at this moment. To install freeletics you have to clone it from this repo. 
+This package is not on PyPi at this moment. To install freeletics you have to clone it from this repo.
 
 ```shell
 
@@ -49,7 +48,7 @@ with FreeleticsClient() as client:
 If you do not want to log in everytime, you can reuse the session this way:
 
 ```python
-from freeletics import Credentials, FreeleticsClient 
+from freeletics import Credentials, FreeleticsClient
 
 with FreeleticsClient() as client:
     client.login(USERNAME, PASSWORD)
@@ -65,4 +64,4 @@ Important note:
 Please be careful when the client refresh the `id_token`. Do not use the old `id_token` again. Otherwise, the Freeletics API server will quit this with an HTTP Error 404 (when the old `id_token` is expired) and your `refresh_token` will be invalid.
 
 @Freeletics engineers:
-It would be very helpful if you open your API. My goal  is only to get my personal training stats from the API. If there is a way please contact me.
+It would be very helpful if you open your API. My goal is only to get my personal training stats from the API. If there is a way please contact me.
